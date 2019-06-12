@@ -222,3 +222,33 @@ Dgraph certificates in a test environment would have automatically setup with se
 
 **Certificates generation for dgraph**:<br>
 The dgraph certificates are already present in ansible-vault. If new certificates are to be generated use the following command with appropriate hostname(check routes of dgraph to get the hostname) and user. `dgraph cert -n <all thoth-station dgraph hostname> -c user`
+
+### Zuul
+`Thoth` useds [`Zuul`](https://zuul-ci.org/) as its `CI/CD` tool for all the testing and pipelining jobs. Migrate `Zuul` is another step during the migration process of `thoth`. First, let cover some basics of `Zuul` in thoth. There is a `Zuul` server running on `OpenStack` which has all the data for `thoth` `Zuul` project. This [link](managesf.thoth-station.ninja) shows you which `Zuul` job is current avaiable on `thoth` `Zuul` project. To migrate `Zuul` to your new cluster, follow the steps to allow `Zuul` running its test on you new cluster.
+
+**First Step**
+Log in to the `Zuul` server and create a new `ServiceAccount` on the `Zuul` Server. Config your new `OpenShift` cluster to allow this `ServiceAccount` access the resource and `namespace` on the new cluster, so it can create context in the new cluster.
+
+**Second Step**
+At this step, we need to configure the `Zuul`'s `nodepool` configuration so `Zuul` can use the new cluster environment to do those tests. Go to this [repo](https://github.com/thoth-station/zuul-config/), then location the file under this path `zuul-config/nodepool/thoth.yaml`. Add the new image for `Zuul` which the new label follow the same format inside this file.
+```
+---
+  labels:
+    - name: "thoth-coala"
+      min-ready: 1
+    ...
+
+  providers:
+    - name: "psi"
+      driver: openshiftpods
+      context: "thoth-zuul/paas-psi-redhat-com:443/system:serviceaccount:thoth-zuul:nodepool"
+      pools:
+        - name: "thoth-zuul"
+          labels:
+            - name: "thoth-coala"
+              image: "thoth-coala:ubi8"
+              cpu: 1
+              memory: 1024
+            ...
+```
+Once the new `nodepool` configuration is merged, `Zuul` will automatically use the new `nodepool` configuration to create new `image` and `pod` in the new cluster for testing. To use the `pod` in new cluster for testing, make sure specify the new `label` in your local `.zuul.yaml` file.
